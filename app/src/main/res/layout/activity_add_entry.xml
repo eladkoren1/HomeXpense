@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+xmlns:app="http://schemas.android.com/apk/res-auto"
+xmlns:tools="http://schemas.android.com/tools"
+android:layout_width="match_parent"
+android:layout_height="match_parent"
+tools:context="com.koren.homexpense.MainActivity"
+android:orientation="horizontal">
+
+    <LinearLayout
+        android:id="@+id/ll_fields"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_expense_date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:layout_marginHorizontal="20dp" />
+
+        <AutoCompleteTextView
+            android:id="@+id/actv_payment_methods"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginHorizontal="20dp"
+            android:hint="דרך ההוצאה:"/>
+
+        <AutoCompleteTextView
+            android:id="@+id/actv_payment_types"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginHorizontal="20dp"
+            android:hint="סוג הוצאה:"/>
+
+        <AutoCompleteTextView
+            android:id="@+id/actv_stores"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginHorizontal="20dp"
+            android:hint="מקום ההוצאה:"/>
+
+
+        <EditText
+            android:id="@+id/et_price"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:hint="מחיר"
+            android:inputType="numberDecimal"
+            android:layout_marginTop="10dp"
+            android:layout_marginHorizontal="20dp"/>
+
+    </LinearLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:layout_below="@+id/ll_fields">
+
+        <Button
+            android:id="@+id/btn_save_purchase"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:layout_marginTop="10dp"
+            android:layout_marginHorizontal="20dp"
+            android:text="שמור" />
+
+        <Button
+            android:id="@+id/btn_add_purchase_receipt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="צלם קבלה"/>
+
+    </RelativeLayout>
+
+</RelativeLayout>
+
