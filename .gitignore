@@ -9,3 +9,7 @@
 /captures
 .externalNativeBuild
 .project
+gradlew
+gradlew.bat
+google-services.json
+/gradle
