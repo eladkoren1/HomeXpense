@@ -25,7 +25,7 @@ import java.util.HashMap;
 
 public class AddEntryActivity extends AppCompatActivity {
 
-    String paymentMethods = {"לאומי-אלעד","לאומי-קרן","כאל-אלעד",""}
+    String[] paymentMethods = {"לאומי-אלעד","לאומי-קרן","כאל-אלעד",""};
     String[] paymentTypes = {"אוכל", "בית", "דלק", "בילויים משותפים", "אישי-אלעד", "אישי-קרן"};
 
     TextView expenseDateTextView;
