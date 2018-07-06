@@ -11,22 +11,18 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.koren.homexpense.Classes.PurchaseEntry;
+import com.koren.homexpense.data.FireBaseUtils;
 
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.HashMap;
 
 public class AddEntryActivity extends AppCompatActivity {
-
-    String[] paymentMethods = {"כרטיס לאומי-אלעד","חשבון משותף","כרטיס לאומי-קרן","כרטיס כאל-אלעד","כרטיס כאל-קרן"};
-    String[] paymentTypes = {"אוכל", "בית", "דלק", "בילויים משותפים", "אישי-אלעד", "אישי-קרן"};
 
     TextView expenseDateTextView;
     AutoCompleteTextView paymentMethodsAutoCompleteTextView;
@@ -37,40 +33,28 @@ public class AddEntryActivity extends AppCompatActivity {
     FirebaseDatabase database = FirebaseDatabase.getInstance();
     Context context = this;
     PurchaseEntry purchaseEntry;
-    ArrayList<HashMap<Integer, String>> dataObjectsArrayList = new ArrayList<>();
+    ArrayList<HashMap<Integer, String>> listsArrayList = new ArrayList<>();
+
     enum dataNames {
-        paymentTypes (0) , STORES (1) ;
+        PAYMENT_METHODS(0), PAYMENT_TYPES(1), STORES(2) ;
 
         dataNames(int i) {
         }
     }
 
-
-
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_entry);
-        //loadStores();
-        loadListsFromFirebase();
-
-        ArrayAdapter<String> paymentMethodsAdapter = new ArrayAdapter<String>(this, android.R.layout.select_dialog_item, paymentMethods);
-        ArrayAdapter<String> paymentTypesAdapter = new ArrayAdapter<String>(this, android.R.layout.select_dialog_item, paymentTypes);
 
         paymentMethodsAutoCompleteTextView = findViewById(R.id.actv_payment_methods);
         paymentTypesAutoCompleteTextView = findViewById(R.id.actv_payment_types);
-
+        storesAutoCompleteTextView = findViewById(R.id.actv_stores);
         savePurchaseButton = findViewById(R.id.btn_save_purchase);
         expenseDateTextView = findViewById(R.id.tv_expense_date);
         priceEditText = findViewById(R.id.et_price);
 
-        paymentMethodsAutoCompleteTextView.setThreshold(1);
-        paymentTypesAutoCompleteTextView.setThreshold(1);
-
-        paymentMethodsAutoCompleteTextView.setAdapter(paymentMethodsAdapter);
-        paymentTypesAutoCompleteTextView.setAdapter(paymentTypesAdapter);
-
+        loadListsFromFirebase();
 
         savePurchaseButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -99,37 +83,23 @@ public class AddEntryActivity extends AppCompatActivity {
                 }
             }
         }
-        if (!dataObjectsArrayList.get(dataNames.STORES.ordinal()).containsValue(purchaseEntry.getStore())) {
-            DatabaseReference storesReference = database.getReference("stores");
-            storesReference.child(String.valueOf(dataObjectsArrayList.get(dataNames.STORES.ordinal()).size() + 1))
-                    .setValue(String.valueOf(purchaseEntry.getStore()));
-            loadListsFromFirebase();
-        }
 
-        addPurchaseEntry(purchaseEntry);
+        addStore(purchaseEntry);
+
+        DatabaseReference purchasesReference = database.getReference("purchases");
+        purchasesReference.child("purchase_" + purchaseEntry.getId()).setValue(purchaseEntry);
+        Toast.makeText(context, "רכישה הוספה בהצלחה", Toast.LENGTH_SHORT).show();
         return purchaseEntry;
     }
 
-    private void addPurchaseEntry(PurchaseEntry purchaseEntry) {
+    private void addStore(PurchaseEntry purchaseEntry) {
 
-        DatabaseReference purchasesReference = database.getReference("purchases");
-
-
-        purchasesReference.child("purchase_" + purchaseEntry.getId()).setValue(purchaseEntry);
-        Toast.makeText(context, "רכישה הוספה בהצלחה", Toast.LENGTH_SHORT).show();
-        purchasesReference.child("purchases").addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                for (DataSnapshot child : dataSnapshot.getChildren()) {
-
-                }
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-
-            }
-        });
+        if (!listsArrayList.get(dataNames.STORES.ordinal()).containsValue(purchaseEntry.getStore())) {
+            DatabaseReference storesReference = database.getReference("stores");
+            storesReference.child(String.valueOf(listsArrayList.get(dataNames.STORES.ordinal()).size() + 1))
+                    .setValue(String.valueOf(purchaseEntry.getStore()));
+            loadListsFromFirebase();
+        }
     }
 
     private void loadListsFromFirebase() {
@@ -140,44 +110,61 @@ public class AddEntryActivity extends AppCompatActivity {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 int i = 0;
-                for (DataSnapshot firebaseObjects : dataSnapshot.getChildren()) {
-                    dataObjectsArrayList.add(new HashMap<Integer, String>());
-                    for (DataSnapshot dataObject : firebaseObjects.getChildren()) {
-                        dataObjectsArrayList.get(i)
-                                .put(Integer.valueOf(dataObject.getKey()), (String) dataObject.getValue());
+                for (DataSnapshot list : dataSnapshot.getChildren()) {
+                    listsArrayList.add(new HashMap<Integer, String>());
+                    for (DataSnapshot listItem : list.getChildren()) {
+                        listsArrayList.get(i)
+                                .put(Integer.valueOf(listItem.getKey()), (String) listItem.getValue());
 
                     }
                     i++;
                 }
-                loadAutoCompleteLists(dataObjectsArrayList);
+                loadAutoCompleteLists(listsArrayList);
             }
-            //ArrayAdapter<String> storesAdapter =
-
 
             @Override
             public void onCancelled(DatabaseError databaseError) {
 
             }
         });
-
-
     }
 
+
     private void loadAutoCompleteLists(ArrayList<HashMap<Integer,String>> dataObjects){
-        storesAutoCompleteTextView = findViewById(R.id.actv_stores);
+
         storesAutoCompleteTextView.setThreshold(1);
         storesAutoCompleteTextView.setAdapter
                 (new ArrayAdapter<String>(  context,
                         android.R.layout.select_dialog_item,
                         getList(dataNames.STORES.ordinal())
                                 .values().toArray
-                                (new String[dataObjectsArrayList
+                                (new String[dataObjects
                                         .get(dataNames.STORES.ordinal())
+                                        .size()])));
+
+        paymentMethodsAutoCompleteTextView.setThreshold(1);
+        paymentMethodsAutoCompleteTextView.setAdapter
+                (new ArrayAdapter<String>(  context,
+                        android.R.layout.select_dialog_item,
+                        getList(dataNames.PAYMENT_METHODS.ordinal())
+                                .values().toArray
+                                (new String[dataObjects
+                                        .get(dataNames.PAYMENT_METHODS.ordinal())
+                                        .size()])));
+
+        paymentTypesAutoCompleteTextView.setThreshold(1);
+        paymentTypesAutoCompleteTextView.setAdapter
+                (new ArrayAdapter<String>(  context,
+                        android.R.layout.select_dialog_item,
+                        getList(dataNames.PAYMENT_TYPES.ordinal())
+                                .values().toArray
+                                (new String[dataObjects
+                                        .get(dataNames.PAYMENT_TYPES.ordinal())
                                         .size()])));
     }
 
     private HashMap<Integer,String> getList(int index){
-        return dataObjectsArrayList.get(index);
+        return listsArrayList.get(index);
     }
 }
 
