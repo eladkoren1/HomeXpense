@@ -4,49 +4,52 @@ import com.google.android.gms.maps.model.LatLng;
 
 public class ExpensePlace {
 
-    private String placeName = null;
-    private String placeAddress = null;
+    private String name = null;
+    private String address = null;
     private String expenseType = null;
-    private LatLng placeCoordinates = null;
+    private LatLng coordinates = null;
 
-    public ExpensePlace(String placeName, String placeAddress, String expenseType, LatLng placeCoordinates) {
+    public ExpensePlace(){
+    }
 
-        this.placeName = placeName;
-        this.placeAddress = placeAddress;
+    public ExpensePlace(String name, String address, String expenseType, LatLng coordinates) {
+
+        this.name = name;
+        this.address = address;
         this.expenseType = expenseType;
-        this.placeCoordinates = placeCoordinates;
+        this.coordinates = coordinates;
     }
 
     public String getPlaceName() {
-        return placeName;
+        return name;
     }
 
-    private void setPlaceName(String placeName) {
-        this.placeName = placeName;
+    public void setPlaceName(String placeName) {
+        this.name = placeName;
     }
 
     public String getPlaceAddress() {
-        return placeAddress;
+        return address;
     }
 
-    private void setPlaceAddress(String placeAddress) {
-        this.placeAddress = placeAddress;
+    public void setPlaceAddress(String placeAddress) {
+        this.address = placeAddress;
     }
 
     public String getExpenseType() {
         return expenseType;
     }
 
-    private void setExpenseType(String expenseType) {
+    public void setExpenseType(String expenseType) {
         this.expenseType = expenseType;
     }
 
     public LatLng getPlaceCoordinates() {
-        return placeCoordinates;
+        return coordinates;
     }
 
-    private void setPlaceCoordinates(LatLng placeCoordinates) {
-        this.placeCoordinates = placeCoordinates;
+    public void setPlaceCoordinates(LatLng coordinates) {
+        this.coordinates = coordinates;
     }
 
 }
