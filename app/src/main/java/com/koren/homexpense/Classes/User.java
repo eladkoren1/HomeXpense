@@ -1,35 +1,31 @@
 package com.koren.homexpense.Classes;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class User {
 
-    private String userName = null;
     private String firstName = null;
     private String lastName = null;
-    private ArrayList<String> paymentMethods = new ArrayList();
-    private String preferredPaymentMethod = null;
+    private ArrayList<String> expenseMethods = new ArrayList();
+    private HashMap<String,Expense> expenses = new HashMap<>();
+    private String preferredExpenseMethod = null;
 
     public User() {
-
+        expenseMethods = new ArrayList<>();
     }
 
-    public User(String userName,
+    public User(
                 String firstName,
                 String lastName,
                 ArrayList<String> paymentMethods,
-                String preferredPaymentMethod) {
+                String preferredExpenseMethod) {
 
-        this.userName = userName;
         this.firstName = firstName;
         this.lastName = lastName;
-        this.paymentMethods = paymentMethods;
-        this.preferredPaymentMethod = preferredPaymentMethod;
+        this.expenseMethods = paymentMethods;
+        this.preferredExpenseMethod = preferredExpenseMethod;
     }
-
-    public String getUserName(){return userName;}
-
-    public void setUserName(String userName){this.userName=userName;}
 
     public String getFirstName() {
         return firstName;
@@ -47,19 +43,21 @@ public class User {
         this.lastName = lastName;
     }
 
-    public ArrayList<String> getPaymentMethods() {
-        return paymentMethods;
+    public ArrayList<String> getExpenseMethods() {
+        return expenseMethods;
     }
 
-    public void setPaymentMethods(ArrayList<String> paymentMethods) {
-        this.paymentMethods = paymentMethods;
+    public void addExpenseMethod(String paymentMethod) {
+        this.expenseMethods.add(paymentMethod);
     }
 
-    public String getPreferredPaymentMethod() {
-        return preferredPaymentMethod;
+    public String getPreferredExpenseMethod() {
+        return preferredExpenseMethod;
     }
 
-    public void setPreferredPaymentMethod(String preferredPaymentMethod) {
-        this.preferredPaymentMethod = preferredPaymentMethod;
+    public void setPreferredExpenseMethod(String preferredExpenseMethod) {
+
+        this.preferredExpenseMethod = preferredExpenseMethod;
+
     }
 }
