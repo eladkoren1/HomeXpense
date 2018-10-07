@@ -17,13 +17,12 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.media.RingtoneManager;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
+import android.service.notification.StatusBarNotification;
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationManagerCompat;
 import android.util.Log;
+import android.widget.ArrayAdapter;
 
 import com.google.android.gms.maps.model.LatLng;
 import com.google.firebase.database.DataSnapshot;
@@ -32,6 +31,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.koren.homexpense.Classes.ExpensePlace;
+import com.koren.homexpense.Classes.User;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,12 +42,14 @@ public class StoreLocationService extends Service implements LocationListener {
 
     LocationManager locationManager;
     Context context = this;
-    boolean isInPlace = false;
-    Uri alarmSound;
-    NotificationCompat.Builder builder;
-    HashMap<Integer,double[]> expensePlaceCoordinates = new HashMap<>();
+    HashMap<Integer,ExpensePlace> expensePlaces = new HashMap<>();
+
     FirebaseDatabase database = FirebaseDatabase.getInstance();
-    int placeKey;
+    DatabaseReference expensePlacesReference = database.getReference("ExpensePlaces");
+
+    String userUID;
+    boolean isInPlace = false;
+    int placeKey=-1;
 
     public StoreLocationService() {
 
@@ -57,63 +59,68 @@ public class StoreLocationService extends Service implements LocationListener {
     @Override
     public void onCreate() {
         super.onCreate();
+
         locationManager = (LocationManager) context.getSystemService(LOCATION_SERVICE);
         locationManager.requestLocationUpdates(GPS_PROVIDER, 5000, 3,this);
+
     }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        userUID = (String)intent.getExtras().get("userUID");
+        return START_NOT_STICKY;
+    }
+
 
     @SuppressLint("LongLogTag")
     private void checkStore(Location location){
-
         LatLng currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
         Log.d("current latlng:", currentLatLng.toString());
-        for (Map.Entry<Integer, double[]> expensePlace : expensePlaceCoordinates.entrySet()){
 
-            double expensePlaceLatitudeDelta = ((Math.abs(currentLatLng.latitude - expensePlace.getValue()[0])));
-            double expensePlaceLongitudeDelta = ((Math.abs(currentLatLng.longitude - expensePlace.getValue()[1])));
+        if (!isInPlace) {
+            for (Map.Entry<Integer, ExpensePlace> expensePlace : expensePlaces.entrySet()) {
 
-            /*if(expensePlace.getKey().equals(3)){
-                Log.d("PLACE",expensePlace.getKey().toString());
-                Log.d("expensePlaceLatitude",String.valueOf(expensePlace.getValue()[0]));
-                Log.d("expensePlaceLongitue",String.valueOf(expensePlace.getValue()[1]));
-            }*/
+                double expensePlaceLatitudeDelta = ((Math.abs(currentLatLng.latitude - expensePlace.getValue().getPlaceCoordinates().latitude)));
+                double expensePlaceLongitudeDelta = ((Math.abs(currentLatLng.longitude - expensePlace.getValue().getPlaceCoordinates().longitude)));
 
-            if ((expensePlaceLatitudeDelta < 0.0001) && (expensePlaceLongitudeDelta < 0.0001)) {
-                Log.d("in place:", "yes");
-                Log.d("current latlng:", currentLatLng.toString());
-                Log.d("expensePlaceLatitude",String.valueOf(expensePlace.getValue()[0]));
-                Log.d("expensePlaceLongitue",String.valueOf(expensePlace.getValue()[1]));
-                isInPlace = true;
-                placeKey = expensePlace.getKey();
 
-                Log.d("placeKey",String.valueOf(placeKey));
-
-            }
-            if (isInPlace) {
-                double expensePlaceLatitudeDeltaInPlace = ((Math.abs(currentLatLng.latitude - expensePlaceCoordinates.get(placeKey)[0])));
-                double expensePlaceLongitudeDeltaInPlace = ((Math.abs(currentLatLng.longitude - expensePlaceCoordinates.get(placeKey)[1])));
-                if ((expensePlaceLatitudeDeltaInPlace > 0.0001) || (expensePlaceLongitudeDeltaInPlace > 0.0001)){
-                    Log.d("left the place", "yes");
-                    Log.d("current latlng", currentLatLng.toString());
-                    Log.d("expensePlaceLatitude",String.valueOf(expensePlace.getValue()[0]));
-                    Log.d("expensePlaceLongitue",String.valueOf(expensePlace.getValue()[1]));
-                    notifyUser(placeKey);
-                    isInPlace = false;
+                if ((expensePlaceLatitudeDelta < 0.0001) && (expensePlaceLongitudeDelta < 0.0001)) {
+                    Log.d("in place:", "yes");
+                    Log.d("expensePlaceLatitude", String.valueOf(expensePlace.getValue().getPlaceCoordinates().latitude));
+                    Log.d("expensePlaceLongitue", String.valueOf(expensePlace.getValue().getPlaceCoordinates().longitude));
+                    isInPlace = true;
+                    placeKey = expensePlace.getKey();
+                    Log.d("placeKey", String.valueOf(placeKey));
                 }
+            }
+        }
+
+
+        if (isInPlace) {
+            double expensePlaceLatitudeDeltaInPlace = ((Math.abs(currentLatLng.latitude - expensePlaces.get(placeKey).getPlaceCoordinates().latitude)));
+            double expensePlaceLongitudeDeltaInPlace = ((Math.abs(currentLatLng.longitude - expensePlaces.get(placeKey).getPlaceCoordinates().longitude)));
+            if ((expensePlaceLatitudeDeltaInPlace > 0.0002) || (expensePlaceLongitudeDeltaInPlace > 0.0002)){
+                Log.d("left the place", "yes");
+                Log.d("expensePlaceLatitude", String.valueOf(expensePlaces.get(placeKey).getPlaceCoordinates().latitude));
+                Log.d("expensePlaceLongitue", String.valueOf(expensePlaces.get(placeKey).getPlaceCoordinates().longitude));
+                notifyUser(placeKey);
+                isInPlace = false;
+                placeKey=-1;
             }
         }
     }
 
 
+    @SuppressLint("NewApi")
     private void notifyUser(int expensePlaceKey){
 
-        Bitmap icon = BitmapFactory.decodeResource(getResources(),
 
-
-                R.mipmap.ic_launcher_round);
-
+        Bitmap icon = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher_round);
+        Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
         int NOTIFICATION_ID = 1;
         String NOTIFICATION_CHANNEL_ID = "my_notification_channel";
 
+        NotificationCompat.Builder notificationBuilder;
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
         NotificationChannel notificationChannel = null;
@@ -133,6 +140,7 @@ public class StoreLocationService extends Service implements LocationListener {
 
         // Create an Intent for the activity you want to start
         Intent addEntryIntent = new Intent(this, AddEntryActivity.class);
+        addEntryIntent.putExtra("userUID",userUID);
         addEntryIntent.putExtra("expensePlaceKey",expensePlaceKey);
         // Create the TaskStackBuilder and add the intent, which inflates the back stack
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
@@ -141,12 +149,11 @@ public class StoreLocationService extends Service implements LocationListener {
         PendingIntent addEntryPendingIntent =
                 stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
 
-        //alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-        builder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID);
-        builder.setContentIntent(addEntryPendingIntent)
-                .setContentTitle("HomeXpense content title")
-                .setContentText("Store tracker content text")
-                .setTicker("HomeXpense Ticker")
+        //
+        notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID);
+        notificationBuilder.setContentIntent(addEntryPendingIntent)
+                .setContentTitle("האם יצאת עכשיו מ"+expensePlaces.get(expensePlaceKey).getPlaceName()+"?")
+                .setContentText("לחץ לתיעוד הוצאה")
                 //.setSound(alarmSound)
                 .setOngoing(true)
                 .setSmallIcon(R.mipmap.ic_launcher_round)
@@ -154,35 +161,49 @@ public class StoreLocationService extends Service implements LocationListener {
                 .setLargeIcon(icon)
                 .setChannelId(NOTIFICATION_CHANNEL_ID);
 
-        //notificationManager = NotificationManagerCompat.from(this);
-        notificationManager.notify(1, builder.build());
-    }
+        Notification addEntryNotification = notificationBuilder.build();
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        // TODO: Return the communication channel to the service.
-        throw new UnsupportedOperationException("Not yet implemented");
+        StatusBarNotification[] statusBarNotification = notificationManager.getActiveNotifications();
+        if ((statusBarNotification.length==0)){
+            notificationManager.notify(NOTIFICATION_ID, addEntryNotification);
+        }
+        else if (!(notificationManager.getActiveNotifications()[0].getId()==NOTIFICATION_ID)){
+            notificationManager.notify(NOTIFICATION_ID, addEntryNotification);
+        }
     }
 
     @Override
     public void onLocationChanged(final Location location) {
-        DatabaseReference expensePlacesReference = database.getReference("ExpensePlaces");
-        expensePlacesReference.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                for (DataSnapshot placeKey : dataSnapshot.getChildren()){
-                    double lat = (Double) placeKey.child("placeCoordinates").child("latitude").getValue();
-                    double lon = (Double) placeKey.child("placeCoordinates").child("longitude").getValue();
-                    double latLong[] = {lat,lon};
-                    expensePlaceCoordinates.put(Integer.parseInt(placeKey.getKey()),latLong);
+        Log.d("Location","changed");
+        if (expensePlaces.isEmpty()) {
+            expensePlacesReference.addValueEventListener(new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot dataSnapshot) {
+
+                    for (DataSnapshot placeKey : dataSnapshot.getChildren()) {
+                        ExpensePlace expensePlace = new ExpensePlace();
+                        expensePlace.setPlaceName(placeKey.child("placeName").getValue().toString());
+                        expensePlace.setPlaceAddress(placeKey.child("placeAddress").getValue().toString());
+                        expensePlace.setExpenseType(placeKey.child("expenseType").getValue().toString());
+                        double lat = (Double) placeKey.child("placeCoordinates").child("latitude").getValue();
+                        double lon = (Double) placeKey.child("placeCoordinates").child("longitude").getValue();
+                        expensePlace.setPlaceCoordinates(new LatLng(lat, lon));
+                        expensePlaces.put(Integer.parseInt(placeKey.getKey()), expensePlace);
+                        Log.d("expensePlace",expensePlace.getPlaceName());
+
+                    }
+                    checkStore(location);
                 }
-                checkStore(location);
-            }
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-            }
-        });
+
+                @Override
+                public void onCancelled(DatabaseError databaseError) {
+                }
+            });
+        }
+        else checkStore(location);
+
     }
+
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
         //Log.i("Status changed",provider.toString() +" "+ String.valueOf(status));
@@ -197,5 +218,10 @@ public class StoreLocationService extends Service implements LocationListener {
     public void onProviderDisabled(String provider) {
         //Log.i("disabled",provider.toString());
 
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
     }
 }
