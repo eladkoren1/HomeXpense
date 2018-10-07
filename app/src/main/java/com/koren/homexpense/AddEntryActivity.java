@@ -3,21 +3,24 @@ package com.koren.homexpense;
 import android.content.Context;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
+import android.widget.Spinner;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.maps.model.LatLng;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.koren.homexpense.Classes.PurchaseEntry;
-import com.koren.homexpense.data.FireBaseUtils;
+import com.koren.homexpense.Classes.ExpensePlace;
+import com.koren.homexpense.Classes.Expense;
+import com.koren.homexpense.Classes.User;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,74 +28,114 @@ import java.util.HashMap;
 public class AddEntryActivity extends AppCompatActivity {
 
     TextView expenseDateTextView;
-    AutoCompleteTextView paymentMethodsAutoCompleteTextView;
-    AutoCompleteTextView paymentTypesAutoCompleteTextView;
-    AutoCompleteTextView storesAutoCompleteTextView;
-    EditText priceEditText;
-    Button savePurchaseButton;
-    FirebaseDatabase database = FirebaseDatabase.getInstance();
-    Context context = this;
-    PurchaseEntry purchaseEntry;
-    ArrayList<HashMap<Integer, String>> listsArrayList = new ArrayList<>();
+    Spinner expenseMethodSpinner;
+    Spinner expenseTypesSpinner;
+    Spinner expensePlacesSpinner;
+    EditText amountEditText;
+    Button saveExpenseButton;
 
-    enum dataNames {
+    FirebaseDatabase database = FirebaseDatabase.getInstance();
+    DatabaseReference usersFirebaseReference = FirebaseDatabase.getInstance().getReference("users");
+    Context context = this;
+    //ArrayList<HashMap<Integer, String>> listsArrayList = new ArrayList<>();
+
+    ArrayList<String> expenseMethodsArray = new ArrayList<>();
+    ArrayList<String> expenseTypesArray = new ArrayList<>();
+    ArrayList<String> expensePlacesArray = new ArrayList<>();
+
+    HashMap<Integer, ExpensePlace> expensePlaces = new HashMap<>();
+
+    String userUID;
+    private int expensePlaceKey = -1;
+
+    User user;
+    Expense expense;
+
+
+    /*enum dataNames {
         PAYMENT_METHODS(0), PAYMENT_TYPES(1), STORES(2) ;
 
         dataNames(int i) {
         }
-    }
-
+    }*/
+    //TODO: Sort all of the data retrieving from Firebase
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_entry);
 
-        paymentMethodsAutoCompleteTextView = findViewById(R.id.actv_payment_methods);
-        paymentTypesAutoCompleteTextView = findViewById(R.id.actv_payment_types);
-        storesAutoCompleteTextView = findViewById(R.id.actv_stores);
-        savePurchaseButton = findViewById(R.id.btn_save_purchase);
-        expenseDateTextView = findViewById(R.id.tv_expense_date);
-        priceEditText = findViewById(R.id.et_price);
+        userUID = this.getIntent().getStringExtra("userUID");
+        expensePlaceKey = this.getIntent().getIntExtra("expensePlaceKey", -1);
 
-        loadListsFromFirebase();
+        expenseMethodSpinner = findViewById(R.id.expense_method_spinner);
+        expenseTypesSpinner = findViewById(R.id.expense_type_spinner);
+        expensePlacesSpinner = findViewById(R.id.expense_places_spinner);
+        setSpinners();
 
-        savePurchaseButton.setOnClickListener(new View.OnClickListener() {
+        expenseDateTextView = findViewById(R.id.expense_date_tv);
+        amountEditText = findViewById(R.id.amount_et);
+
+        saveExpenseButton = findViewById(R.id.save_expense_btn);
+        saveExpenseButton.setOnClickListener(new View.OnClickListener() {
+
             @Override
             public void onClick(View v) {
-                addPurchase();
+                addExpense();
             }
         });
-    }
 
+        if (!userUID.isEmpty()) {
 
-    private PurchaseEntry addPurchase() {
-        String test = String.valueOf(storesAutoCompleteTextView.getText());
-        if (!test.equals("")) {
-            test = String.valueOf(paymentTypesAutoCompleteTextView.getText());
-            if (!test.equals("")) {
-                test = String.valueOf(paymentMethodsAutoCompleteTextView.getText());
-                if (!test.equals("")) {
-                    test = String.valueOf(priceEditText.getText());
-                    if (!test.equals("")) {
-                        purchaseEntry = new PurchaseEntry(
-                                String.valueOf(paymentMethodsAutoCompleteTextView.getText()),
-                                String.valueOf(paymentTypesAutoCompleteTextView.getText()),
-                                String.valueOf(storesAutoCompleteTextView.getText()),
-                                Double.parseDouble(String.valueOf(priceEditText.getText())));
+            usersFirebaseReference.child(userUID).addListenerForSingleValueEvent(new ValueEventListener() {
+                public void onDataChange(DataSnapshot dataSnapshot) {
+                    if (dataSnapshot.exists()) {
+                        user = dataSnapshot.getValue(User.class);
+                        Log.d("", "");
+                        expenseMethodsArray = user.getExpenseMethods();
+                        expenseMethodSpinner.setAdapter(
+                                new ArrayAdapter<String>(context, android.R.layout.select_dialog_item, expenseMethodsArray));
+                        expenseMethodSpinner.setSelection(user.getExpenseMethods().indexOf(user.getPreferredExpenseMethod()));
                     }
                 }
-            }
+
+                @Override
+                public void onCancelled(DatabaseError databaseError) {
+
+                }
+            });
         }
 
-        addStore(purchaseEntry);
-
-        DatabaseReference purchasesReference = database.getReference("purchases");
-        purchasesReference.child("purchase_" + purchaseEntry.getId()).setValue(purchaseEntry);
-        Toast.makeText(context, "רכישה הוספה בהצלחה", Toast.LENGTH_SHORT).show();
-        return purchaseEntry;
     }
 
-    private void addStore(PurchaseEntry purchaseEntry) {
+
+    private void addExpense() {
+        String test = String.valueOf(expenseMethodSpinner.getSelectedItem());
+        if (!test.equals("")) {
+            test = String.valueOf(expenseTypesSpinner.getSelectedItem());
+            if (!test.equals("")) {
+                test = String.valueOf(expensePlacesSpinner.getSelectedItem());
+                if (!test.equals("")) {
+                    test = String.valueOf(amountEditText.getText());
+                    if (!test.equals("")) {
+                        expense = new Expense(
+                                String.valueOf(expenseMethodSpinner.getSelectedItem()),
+                                String.valueOf(expenseTypesSpinner.getSelectedItem()),
+                                String.valueOf(expensePlacesSpinner.getSelectedItem()),
+                                Double.parseDouble(String.valueOf(amountEditText.getText())));
+
+                        //TODO: IMPLEMENT ADDSTORE IN MAIN ACTIVITY
+                        //addStore(purchaseEntry);
+                        DatabaseReference purchasesReference = database.getReference("purchases");
+                        purchasesReference.child(String.valueOf(expense.getDateId())).setValue(expense);
+                        Toast.makeText(context, "רכישה הוספה בהצלחה", Toast.LENGTH_SHORT).show();
+                        finish();
+                    } else Toast.makeText(this, "אנא הכנס הוצאה", Toast.LENGTH_SHORT).show();
+                } else Toast.makeText(this, "אנא הכנס מקום הוצאה", Toast.LENGTH_SHORT).show();
+            } else Toast.makeText(this, "אנא הכנס סוג הוצאה", Toast.LENGTH_SHORT).show();
+        } else Toast.makeText(this, "אנא הכנס דרך הוצאה", Toast.LENGTH_SHORT).show();
+    }
+
+   /* private void addStore(Expense purchaseEntry) {
 
         if (!listsArrayList.get(dataNames.STORES.ordinal()).containsValue(purchaseEntry.getStore())) {
             DatabaseReference storesReference = database.getReference("stores");
@@ -100,26 +143,48 @@ public class AddEntryActivity extends AppCompatActivity {
                     .setValue(String.valueOf(purchaseEntry.getStore()));
             loadListsFromFirebase();
         }
-    }
+    }*/
 
-    private void loadListsFromFirebase() {
+    private void setSpinners() {
 
-        DatabaseReference dataReference = database.getReference("lists");
-        dataReference.addValueEventListener(new ValueEventListener() {
+        //Load expense types from Firebase and set adapter
+        DatabaseReference expenseTypesReference = database.getReference("expenseTypes");
+        expenseTypesReference.addValueEventListener(new ValueEventListener() {
 
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                int i = 0;
-                for (DataSnapshot list : dataSnapshot.getChildren()) {
-                    listsArrayList.add(new HashMap<Integer, String>());
-                    for (DataSnapshot listItem : list.getChildren()) {
-                        listsArrayList.get(i)
-                                .put(Integer.valueOf(listItem.getKey()), (String) listItem.getValue());
-
-                    }
-                    i++;
+                for (DataSnapshot item : dataSnapshot.getChildren()) {
+                    expenseTypesArray.add(String.valueOf(item.getValue()));
                 }
-                loadAutoCompleteLists(listsArrayList);
+                expenseTypesSpinner.setAdapter
+                        (new ArrayAdapter<String>(context, android.R.layout.select_dialog_item, expenseTypesArray));
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+        //Load expense places From and set adapter
+        DatabaseReference expensePlacesReference = database.getReference("expensePlaces");
+        expensePlacesReference.addValueEventListener(new ValueEventListener() {
+
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                for (DataSnapshot expensePlaceKey : dataSnapshot.getChildren()) {
+                    for (DataSnapshot expensePlaceName : expensePlaceKey.getChildren()) {
+
+                        //TODO: CHANGE placeName to name IN DB!!!!!!111!!111
+
+                        if (String.valueOf(expensePlaceName.getKey()).contentEquals("placeName"))
+                            expensePlacesArray.add(String.valueOf(expensePlaceName.getValue()));
+                    }
+                }
+                expensePlacesSpinner.setAdapter
+                        (new ArrayAdapter<String>(context, android.R.layout.select_dialog_item, expensePlacesArray));
+                if (expensePlaceKey != -1) expensePlacesSpinner.setSelection(expensePlaceKey);
+
             }
 
             @Override
@@ -128,43 +193,72 @@ public class AddEntryActivity extends AppCompatActivity {
             }
         });
     }
+}
+
+    //private void setAutoCompleteLists(ArrayList<HashMap<Integer,String>> dataObjects){
 
 
-    private void loadAutoCompleteLists(ArrayList<HashMap<Integer,String>> dataObjects){
-
-        storesAutoCompleteTextView.setThreshold(1);
-        storesAutoCompleteTextView.setAdapter
+       /* storesSpinner.setAdapter
                 (new ArrayAdapter<String>(  context,
                         android.R.layout.select_dialog_item,
                         getList(dataNames.STORES.ordinal())
                                 .values().toArray
                                 (new String[dataObjects
                                         .get(dataNames.STORES.ordinal())
-                                        .size()])));
+                                        .size()])));*/
 
-        paymentMethodsAutoCompleteTextView.setThreshold(1);
-        paymentMethodsAutoCompleteTextView.setAdapter
+
+        /*expenseMethodsSpinner.setAdapter
                 (new ArrayAdapter<String>(  context,
                         android.R.layout.select_dialog_item,
+                        user.getExpenseMethods()));
+
                         getList(dataNames.PAYMENT_METHODS.ordinal())
                                 .values().toArray
-                                (new String[dataObjects
+                              (new String[dataObjects
                                         .get(dataNames.PAYMENT_METHODS.ordinal())
-                                        .size()])));
+                                        .size()])));*/
 
-        paymentTypesAutoCompleteTextView.setThreshold(1);
-        paymentTypesAutoCompleteTextView.setAdapter
+        /*expenseTypesSpinner.setAdapter
                 (new ArrayAdapter<String>(  context,
                         android.R.layout.select_dialog_item,
                         getList(dataNames.PAYMENT_TYPES.ordinal())
                                 .values().toArray
                                 (new String[dataObjects
                                         .get(dataNames.PAYMENT_TYPES.ordinal())
-                                        .size()])));
-    }
+                                        .size()])));*
 
-    private HashMap<Integer,String> getList(int index){
+    /*private HashMap<Integer,String> getList(int index){
         return listsArrayList.get(index);
-    }
-}
+    }*/
 
+    /*private void getExpensePlacesFromFirebase(){
+
+        final DatabaseReference expensePlacesReference = database.getReference("ExpensePlaces");
+        expensePlacesReference.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                for (DataSnapshot placeKey : dataSnapshot.getChildren()){
+                    String placeAddress = (String) placeKey.child("placeAddress").getValue();
+                    String placeName = (String) placeKey.child("placeName").getValue();
+                    LatLng placeCoordinates = new LatLng(
+                            (double)placeKey.child("placeCoordinates").child("latitude").getValue(),
+                            (double)placeKey.child("placeCoordinates").child("longitude").getValue());
+                    String expenseType = (String) placeKey.child("expenseType").getValue();
+
+                    expensePlaces.put(Integer.parseInt(placeKey.getKey()),
+                            new ExpensePlace(placeName,placeAddress,expenseType,placeCoordinates));
+                }
+
+                expenseTypesSpinner.setText(expensePlaces.get(expensePlaceKey).getExpenseType());
+
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+    }*/
